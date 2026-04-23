@@ -1,0 +1,112 @@
+{
+  "categories": [
+    {
+      "id": "opening",
+      "name": "سؤال افتتاحي",
+      "icon": "🎯",
+      "file": "opening.json",
+      "difficulty": "سهل",
+      "selectable": false,
+      "description": "أسئلة سريعة لتحديد من يبدأ"
+    },
+    {
+      "id": "capitals",
+      "name": "عواصم",
+      "icon": "🏛️",
+      "file": "capitals.json",
+      "difficulty": "متوسط",
+      "selectable": true,
+      "description": "أسئلة عن عواصم الدول"
+    },
+    {
+      "id": "history",
+      "name": "تاريخ",
+      "icon": "📜",
+      "file": "history.json",
+      "difficulty": "متوسط",
+      "selectable": true,
+      "description": "أسئلة تاريخية"
+    },
+    {
+      "id": "culture",
+      "name": "ثقافة عامة",
+      "icon": "🎭",
+      "file": "culture.json",
+      "difficulty": "متوسط",
+      "selectable": true,
+      "description": "معلومات عامة متنوعة"
+    },
+    {
+      "id": "science",
+      "name": "علوم",
+      "icon": "🔬",
+      "file": "science.json",
+      "difficulty": "متوسط",
+      "selectable": true,
+      "description": "أسئلة علمية"
+    },
+    {
+      "id": "geography",
+      "name": "جغرافيا",
+      "icon": "🌍",
+      "file": "geography.json",
+      "difficulty": "متوسط",
+      "selectable": true,
+      "description": "أسئلة جغرافية"
+    },
+    {
+      "id": "technology",
+      "name": "تكنولوجيا",
+      "icon": "💻",
+      "file": "technology.json",
+      "difficulty": "متوسط",
+      "selectable": true,
+      "description": "تقنية وابتكارات"
+    },
+    {
+      "id": "islamic",
+      "name": "إسلاميات",
+      "icon": "🕌",
+      "file": "islamic.json",
+      "difficulty": "متوسط",
+      "selectable": true,
+      "description": "أسئلة دينية إسلامية"
+    },
+    {
+      "id": "characters",
+      "name": "شخصيات",
+      "icon": "👤",
+      "file": "characters.json",
+      "difficulty": "متوسط",
+      "selectable": true,
+      "description": "شخصيات تاريخية ومعاصرة"
+    },
+    {
+      "id": "riddles",
+      "name": "ألغاز",
+      "icon": "🧩",
+      "file": "riddles.json",
+      "difficulty": "متنوع",
+      "selectable": true,
+      "description": "ألغاز وأحاجي سريعة"
+    },
+    {
+      "id": "sports",
+      "name": "رياضة",
+      "icon": "⚽",
+      "file": "sports.json",
+      "difficulty": "متوسط",
+      "selectable": false,
+      "description": "متوقفة مؤقتًا حتى تعبئة المكتبة"
+    },
+    {
+      "id": "hard",
+      "name": "التحدي الصعب",
+      "icon": "🔥",
+      "file": "hard.json",
+      "difficulty": "صعب",
+      "selectable": false,
+      "description": "متوقف مؤقتًا حتى تعبئة المكتبة"
+    }
+  ]
+}
