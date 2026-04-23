@@ -46,6 +46,24 @@
   color: var(--color-text-dim);
 }
 
+.room-suggestions {
+  margin-top: 0.55rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  justify-content: center;
+}
+
+.room-suggestions .chip-btn {
+  border: 1px solid rgba(255,255,255,0.22);
+  background: rgba(255,255,255,0.08);
+  color: #fff;
+  border-radius: 999px;
+  padding: 0.22rem 0.7rem;
+  font-size: 0.88rem;
+  cursor: pointer;
+}
+
 /* Keep team selector text readable when native dropdown menu opens. */
 #registrationScreen #teamSelect {
   color: #0f1a34;

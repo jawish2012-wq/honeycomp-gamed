@@ -18,9 +18,21 @@
       <p id="loginMessage" class="status-text"></p>
     </section>
 
+    <section id="lobbyScreen" class="panel surface hidden">
+      <div class="lobby-head">
+        <h1>🎮 الغرف النشطة</h1>
+        <button id="createLobbyRoomBtn" type="button" class="btn btn-small">🆕 إنشاء لعبة جديدة</button>
+      </div>
+      <p id="lobbyStatus" class="status-text">اختر غرفة لاستكمال اللعبة أو أنشئ غرفة جديدة.</p>
+      <div id="roomsList" class="rooms-list"></div>
+    </section>
+
     <section id="setupScreen" class="panel surface hidden">
-      <h1>🐝 إعداد المباراة</h1>
-      <div class="inline-actions">
+      <div class="lobby-head">
+        <h1>🐝 إعداد المباراة</h1>
+        <button id="backToLobbyFromSetupBtn" type="button" class="btn btn-small">↩️ العودة للغرف</button>
+      </div>
+      <div class="inline-actions wrap">
         <button id="createRoomBtn" type="button" class="btn btn-small">🆕 إنشاء لعبة جديدة</button>
         <p id="gameCodeText" class="status-text">🎮 رقم اللعبة: ----</p>
       </div>
@@ -48,7 +60,10 @@
     </section>
 
     <section id="waitingScreen" class="panel surface hidden">
-      <h1>👥 انتظار اللاعبين</h1>
+      <div class="lobby-head">
+        <h1>👥 انتظار اللاعبين</h1>
+        <button id="backToLobbyFromWaitingBtn" type="button" class="btn btn-small">↩️ العودة للغرف</button>
+      </div>
       <p id="gameCodeTextWaiting" class="status-text">🎮 رقم اللعبة: ----</p>
       <p id="playersCountText">👥 0 لاعبين متصلين</p>
       <p id="teamsOnlineCountText" class="status-text">🔴 0 | 🟢 0</p>
@@ -73,6 +88,7 @@
         <p id="gameCodeInline" class="badge">#----</p>
         <p id="roundText">الجولة 1</p>
         <p id="turnText">الدور: -</p>
+        <button id="backToLobbyFromGameBtn" type="button" class="btn btn-small">↩️ الغرف</button>
         <button id="toggleDebugBtn" type="button" class="btn btn-small">🔧 أدوات</button>
         <button id="toggleOverrideBtn" type="button" class="btn btn-small">🎨 تعديل يدوي</button>
       </div>

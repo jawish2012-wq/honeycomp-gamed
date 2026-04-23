@@ -41,7 +41,10 @@
     overrideHistory: [],
     pendingTargetMode: null,
     isAuthenticated: false,
-    isStartingMatch: false
+    isStartingMatch: false,
+    roomSelected: false,
+    activeRoomPin: null,
+    roomsIndex: {}
   };
 
   /**
@@ -64,8 +67,13 @@
       console.error('⚠️ Question library load failed on referee:', error);
       setText('loginMessage', '⚠️ تعذّر تحميل مكتبة الأسئلة الآن');
     }
-    DATA_LAYER.onRoomChange(renderRoomPin);
+    DATA_LAYER.onRoomChange(function (pin) {
+      appState.activeRoomPin = pin || null;
+      renderRoomPin(pin);
+      refreshLobbyHighlight();
+    });
     renderRoomPin(DATA_LAYER.getRoomPin());
+    appState.activeRoomPin = DATA_LAYER.getRoomPin() || null;
     DATA_LAYER.onDataChange('game', handleGameChange);
     DATA_LAYER.onDataChange('game.players', function (playersData) {
       var safePlayers = playersData && typeof playersData === 'object' ? playersData : {};
@@ -73,6 +81,16 @@
       console.log('🟡 REFEREE: Raw data:', safePlayers);
       console.log('🟡 REFEREE: Player count:', Object.keys(safePlayers).length);
       renderPlayers(safePlayers);
+      if (appState.roomSelected && appState.activeRoomPin) {
+        var gameForIndex = appState.lastGame && typeof appState.lastGame === 'object'
+          ? Object.assign({}, appState.lastGame, { players: safePlayers })
+          : { players: safePlayers };
+        updateRoomIndexFromGame(appState.activeRoomPin, gameForIndex).catch(function () {});
+      }
+    });
+    DATA_LAYER.onDataChange('rooms_index', function (roomsData) {
+      appState.roomsIndex = roomsData && typeof roomsData === 'object' ? roomsData : {};
+      renderRoomsLobby();
     });
     startPresenceMonitor();
     startSnapshotAutoSave();
@@ -80,19 +98,13 @@
 
     var authenticated = sessionStorage.getItem('hcg_referee_auth') === '1';
     appState.isAuthenticated = authenticated;
-    var game = await readGame();
-
     if (!authenticated) {
       showScreen('login');
       return;
     }
 
-    if (game && typeof game === 'object') {
-      handleGameChange(game);
-      return;
-    }
-
-    showScreen('setup');
+    enterLobby('اختر غرفة للاستئناف أو أنشئ غرفة جديدة.');
+    await loadRoomsIndexNow();
   }
 
   /**
@@ -103,10 +115,31 @@
       if (event && event.preventDefault) event.preventDefault();
       handleLogin();
     });
+    var createLobbyRoomBtn = document.getElementById('createLobbyRoomBtn');
+    if (createLobbyRoomBtn) {
+      createLobbyRoomBtn.addEventListener('click', function (event) {
+        if (event && event.preventDefault) event.preventDefault();
+        handleCreateRoom();
+      });
+    }
     var createRoomBtn = document.getElementById('createRoomBtn');
     if (createRoomBtn) createRoomBtn.addEventListener('click', function (event) {
       if (event && event.preventDefault) event.preventDefault();
       handleCreateRoom();
+    });
+    var roomsList = document.getElementById('roomsList');
+    if (roomsList) {
+      roomsList.addEventListener('click', onLobbyRoomAction);
+    }
+    var backToLobbyFromSetupBtn = document.getElementById('backToLobbyFromSetupBtn');
+    if (backToLobbyFromSetupBtn) backToLobbyFromSetupBtn.addEventListener('click', backToLobby);
+    var backToLobbyFromWaitingBtn = document.getElementById('backToLobbyFromWaitingBtn');
+    if (backToLobbyFromWaitingBtn) backToLobbyFromWaitingBtn.addEventListener('click', backToLobby);
+    var backToLobbyFromGameBtn = document.getElementById('backToLobbyFromGameBtn');
+    if (backToLobbyFromGameBtn) backToLobbyFromGameBtn.addEventListener('click', function () {
+      var goBack = window.confirm('الرجوع للغرف سيُبقي هذه المباراة محفوظة. متابعة؟');
+      if (!goBack) return;
+      backToLobby();
     });
     document.getElementById('startMatchBtn').addEventListener('click', function (event) {
       if (event && event.preventDefault) event.preventDefault();
@@ -164,18 +197,10 @@
       sessionStorage.setItem('hcg_referee_auth', '1');
       appState.isAuthenticated = true;
       setText('loginMessage', 'تم تسجيل الدخول بنجاح');
-      showScreen('setup');
-
-      (async function () {
-        try {
-          var game = await readGame();
-          if (game && typeof game === 'object') {
-            handleGameChange(game);
-          }
-        } catch (error) {
-          console.error('❌ Background game restore failed after login:', error);
-        }
-      })();
+      enterLobby('اختر غرفة للاستئناف أو أنشئ غرفة جديدة.');
+      loadRoomsIndexNow().catch(function (error) {
+        console.error('❌ Failed to load rooms after login:', error);
+      });
     } catch (error) {
       console.error('❌ handleLogin fatal error:', error);
       setText('loginMessage', 'حدث خطأ أثناء تسجيل الدخول');
@@ -188,22 +213,317 @@
    */
   async function handleCreateRoom() {
     var createBtn = document.getElementById('createRoomBtn');
+    var lobbyCreateBtn = document.getElementById('createLobbyRoomBtn');
     try {
       if (createBtn) createBtn.disabled = true;
+      if (lobbyCreateBtn) lobbyCreateBtn.disabled = true;
+      setText('lobbyStatus', '⏳ جاري إنشاء غرفة جديدة...');
       setText('setupStatus', '⏳ جاري إنشاء اللعبة...');
       var pin = await DATA_LAYER.createRoom();
+      appState.roomSelected = true;
+      appState.activeRoomPin = pin;
       renderRoomPin(pin);
+      await updateRoomIndexFromGame(pin, null);
       setText('setupStatus', '✅ تم إنشاء غرفة جديدة: ' + pin);
       setText('startRoundHint', '🎮 الغرفة جاهزة. أكمل إعداد المباراة.');
+      setText('lobbyStatus', '✅ تم إنشاء غرفة #' + pin + '. أكمل إعدادها الآن.');
       showScreen('setup');
     } catch (error) {
       console.error('Failed to create room:', error);
       var fallbackPin = generateNumericGameCode();
       DATA_LAYER.setRoomPin(fallbackPin);
+      appState.roomSelected = true;
+      appState.activeRoomPin = fallbackPin;
       renderRoomPin(fallbackPin);
+      updateRoomIndexFromGame(fallbackPin, null).catch(function () {});
       setText('setupStatus', '⚠️ تعذّر إنشاء غرفة تلقائيًا، تم التبديل إلى: ' + fallbackPin);
+      setText('lobbyStatus', '⚠️ تعذّر إنشاء غرفة على Firebase، استخدم الرمز: ' + fallbackPin);
     } finally {
       if (createBtn) createBtn.disabled = false;
+      if (lobbyCreateBtn) lobbyCreateBtn.disabled = false;
+      loadRoomsIndexNow().catch(function () {});
+    }
+  }
+
+  /**
+   * Shows lobby screen and clears active room rendering lock.
+   * @param {string=} message Optional status message.
+   */
+  function enterLobby(message) {
+    appState.roomSelected = false;
+    setText('lobbyStatus', message || 'اختر غرفة لاستكمال اللعبة أو أنشئ غرفة جديدة.');
+    showScreen('lobby');
+    renderRoomsLobby();
+  }
+
+  /**
+   * Handles "back to lobby" actions.
+   */
+  function backToLobby() {
+    enterLobby('تم الرجوع للغرف. يمكنك استكمال أو إنشاء مباراة أخرى.');
+    loadRoomsIndexNow().catch(function (error) {
+      console.warn('⚠️ rooms refresh failed on backToLobby:', error);
+    });
+  }
+
+  /**
+   * Handles clicks inside room cards.
+   * @param {MouseEvent} event Click event.
+   */
+  function onLobbyRoomAction(event) {
+    var target = event && event.target ? event.target : null;
+    if (!target) return;
+    var button = target.closest('button[data-action][data-pin]');
+    if (!button) return;
+
+    var pin = sanitizeRoomPin(button.dataset.pin || '');
+    if (!pin) return;
+    var action = String(button.dataset.action || '');
+
+    if (action === 'resume') {
+      resumeRoomFromLobby(pin).catch(function (error) {
+        console.error('❌ resumeRoomFromLobby failed:', error);
+        setText('lobbyStatus', '❌ تعذّر فتح الغرفة #' + pin);
+      });
+      return;
+    }
+
+    if (action === 'delete') {
+      deleteRoomFromLobby(pin).catch(function (error) {
+        console.error('❌ deleteRoomFromLobby failed:', error);
+        setText('lobbyStatus', '❌ تعذّر حذف الغرفة #' + pin);
+      });
+    }
+  }
+
+  /**
+   * Joins selected room and restores its current screen state.
+   * @param {string} pin Room pin.
+   * @returns {Promise<void>} Completion promise.
+   */
+  async function resumeRoomFromLobby(pin) {
+    var normalized = sanitizeRoomPin(pin);
+    if (!normalized) return;
+
+    setText('lobbyStatus', '⏳ جارٍ فتح الغرفة #' + normalized + '...');
+    var joined = await DATA_LAYER.joinRoom(normalized);
+    if (!joined) {
+      setText('lobbyStatus', '❌ الغرفة #' + normalized + ' غير متاحة');
+      return;
+    }
+
+    appState.roomSelected = true;
+    appState.activeRoomPin = normalized;
+    renderRoomPin(normalized);
+
+    var game = await readGame();
+    if (game && typeof game === 'object') {
+      handleGameChange(game);
+      setText('lobbyStatus', '✅ تم فتح الغرفة #' + normalized);
+      return;
+    }
+
+    setText('setupStatus', 'الغرفة #' + normalized + ' جاهزة. أدخل بيانات الفرق ثم ابدأ المباراة.');
+    setText('startRoundHint', '🎮 بانتظار إعداد المباراة في هذه الغرفة.');
+    showScreen('setup');
+  }
+
+  /**
+   * Deletes room and its index entry.
+   * @param {string} pin Room pin.
+   * @returns {Promise<void>} Completion promise.
+   */
+  async function deleteRoomFromLobby(pin) {
+    var normalized = sanitizeRoomPin(pin);
+    if (!normalized) return;
+
+    var confirmed = window.confirm('هل تريد حذف الغرفة #' + normalized + ' نهائيًا؟');
+    if (!confirmed) return;
+
+    if (typeof DATA_LAYER.deleteRoom === 'function') {
+      await DATA_LAYER.deleteRoom(normalized);
+    } else {
+      await DATA_LAYER.removeData('games.' + normalized);
+      await DATA_LAYER.removeData('rooms_index.' + normalized);
+    }
+
+    if (appState.activeRoomPin === normalized) {
+      appState.roomSelected = false;
+      appState.activeRoomPin = null;
+    }
+    setText('lobbyStatus', '🗑️ تم حذف الغرفة #' + normalized);
+    await loadRoomsIndexNow();
+  }
+
+  /**
+   * Loads room index snapshot immediately for lobby rendering.
+   * @returns {Promise<void>} Completion promise.
+   */
+  async function loadRoomsIndexNow() {
+    var list = [];
+    if (typeof DATA_LAYER.listRooms === 'function') {
+      list = await DATA_LAYER.listRooms();
+      var mapped = {};
+      (list || []).forEach(function (room) {
+        var pin = sanitizeRoomPin(room && room.pin);
+        if (!pin) return;
+        mapped[pin] = room;
+      });
+      appState.roomsIndex = mapped;
+      renderRoomsLobby();
+      return;
+    }
+
+    var roomsData = await DATA_LAYER.readData('rooms_index');
+    appState.roomsIndex = roomsData && typeof roomsData === 'object' ? roomsData : {};
+    renderRoomsLobby();
+  }
+
+  /**
+   * Renders lobby room cards.
+   */
+  function renderRoomsLobby() {
+    var listEl = document.getElementById('roomsList');
+    if (!listEl) return;
+
+    var entries = Object.keys(appState.roomsIndex || {}).map(function (pin) {
+      return buildRoomSummary(pin, appState.roomsIndex[pin]);
+    }).filter(function (room) {
+      return !!room.pin;
+    }).sort(function (a, b) {
+      return Number(b.updatedAt || 0) - Number(a.updatedAt || 0);
+    });
+
+    listEl.innerHTML = '';
+
+    if (!entries.length) {
+      var empty = document.createElement('div');
+      empty.className = 'room-empty';
+      empty.textContent = 'لا توجد غرف بعد. أنشئ غرفة جديدة للبدء.';
+      listEl.appendChild(empty);
+      return;
+    }
+
+    entries.forEach(function (room) {
+      var card = document.createElement('article');
+      card.className = 'room-card' + (room.pin === appState.activeRoomPin ? ' active' : '');
+
+      var top = document.createElement('div');
+      top.className = 'room-card-top';
+      var pinText = document.createElement('div');
+      pinText.className = 'room-pin';
+      pinText.textContent = '#'+ room.pin;
+      var badge = document.createElement('span');
+      badge.className = 'room-badge status-' + room.status;
+      badge.textContent = room.statusLabel;
+      top.appendChild(pinText);
+      top.appendChild(badge);
+
+      var teams = document.createElement('p');
+      teams.className = 'room-meta';
+      teams.textContent = room.team1Name + ' ضد ' + room.team2Name;
+
+      var score = document.createElement('p');
+      score.className = 'room-meta';
+      score.textContent = 'النتيجة: ' + room.scoreText + ' | المتصلون: ' + room.playersOnline;
+
+      var updated = document.createElement('p');
+      updated.className = 'room-meta';
+      updated.textContent = 'آخر تحديث: ' + formatRoomTime(room.updatedAt);
+
+      var actions = document.createElement('div');
+      actions.className = 'room-actions';
+
+      var resumeBtn = document.createElement('button');
+      resumeBtn.type = 'button';
+      resumeBtn.className = 'btn btn-small';
+      resumeBtn.dataset.action = 'resume';
+      resumeBtn.dataset.pin = room.pin;
+      resumeBtn.textContent = '▶️ فتح الغرفة';
+
+      var deleteBtn = document.createElement('button');
+      deleteBtn.type = 'button';
+      deleteBtn.className = 'btn btn-small btn-danger';
+      deleteBtn.dataset.action = 'delete';
+      deleteBtn.dataset.pin = room.pin;
+      deleteBtn.textContent = '🗑️ حذف';
+
+      actions.appendChild(resumeBtn);
+      actions.appendChild(deleteBtn);
+
+      card.appendChild(top);
+      card.appendChild(teams);
+      card.appendChild(score);
+      card.appendChild(updated);
+      card.appendChild(actions);
+      listEl.appendChild(card);
+    });
+  }
+
+  /**
+   * Marks active room card style after room changes.
+   */
+  function refreshLobbyHighlight() {
+    var cards = document.querySelectorAll('.room-card');
+    cards.forEach(function (card) {
+      var pinEl = card.querySelector('.room-pin');
+      var pinText = pinEl ? pinEl.textContent.replace('#', '').trim() : '';
+      card.classList.toggle('active', !!pinText && pinText === appState.activeRoomPin);
+    });
+  }
+
+  /**
+   * Builds safe room summary for lobby cards.
+   * @param {string} pin Room pin.
+   * @param {Object} row Room index row.
+   * @returns {Object} Normalized room info.
+   */
+  function buildRoomSummary(pin, row) {
+    var raw = row && typeof row === 'object' ? row : {};
+    var status = String(raw.status || '').toLowerCase();
+    var phase = String(raw.phase || '').toLowerCase();
+    if (!status && phase) {
+      if (phase === 'matchend') status = 'finished';
+      else if (phase === 'setup' || phase === 'waitingplayers') status = 'setup';
+      else status = 'playing';
+    }
+    if (status !== 'setup' && status !== 'playing' && status !== 'finished') {
+      status = 'setup';
+    }
+    var statusLabelMap = {
+      setup: '🔧 إعداد',
+      playing: '⏳ جارية',
+      finished: '✅ منتهية'
+    };
+    return {
+      pin: sanitizeRoomPin(pin),
+      status: status,
+      statusLabel: statusLabelMap[status],
+      team1Name: raw.team1Name || 'الفريق الأول',
+      team2Name: raw.team2Name || 'الفريق الثاني',
+      scoreText: raw.scoreText || '0 - 0',
+      playersOnline: Number(raw.playersOnline || 0),
+      updatedAt: Number(raw.updatedAt || 0)
+    };
+  }
+
+  /**
+   * Formats room timestamp for lobby.
+   * @param {number} value Unix timestamp ms.
+   * @returns {string} Human readable time.
+   */
+  function formatRoomTime(value) {
+    var ts = Number(value || 0);
+    if (!ts) return '—';
+    try {
+      return new Date(ts).toLocaleString('ar-SA', {
+        hour: '2-digit',
+        minute: '2-digit',
+        day: '2-digit',
+        month: '2-digit'
+      });
+    } catch (_error) {
+      return String(ts);
     }
   }
 
@@ -213,6 +533,15 @@
   async function startMatch() {
     try {
       appState.isStartingMatch = true;
+      var roomPin = sanitizeRoomPin(DATA_LAYER.getRoomPin() || appState.activeRoomPin || '');
+      if (!roomPin) {
+        setText('setupStatus', '❌ اختر غرفة أولاً من صفحة الغرف.');
+        enterLobby('اختر غرفة أولاً قبل بدء المباراة.');
+        return;
+      }
+
+      appState.roomSelected = true;
+      appState.activeRoomPin = roomPin;
       setText('setupStatus', '⏳ جاري بدء المباراة...');
       showScreen('waiting');
       setText('refereeStatus', '⏳ تجهيز بيانات المباراة...');
@@ -223,7 +552,6 @@
       var team2Color = document.getElementById('team2Color').value || '#27ae60';
       var bestOf = Number(document.getElementById('bestOfSelect').value || 3);
 
-      var roomPin = DATA_LAYER.getRoomPin() || generateNumericGameCode();
       DATA_LAYER.setRoomPin(roomPin);
       renderRoomPin(roomPin);
       var existingGame = null;
@@ -265,6 +593,8 @@
       };
 
       await writeGame(game);
+      await updateRoomIndexFromGame(roomPin, game);
+      await loadRoomsIndexNow();
       safeLog('PHASE_CHANGE', { from: null, to: PHASES.WAITING_PLAYERS });
       setText('setupStatus', '✅ تم إنشاء المباراة بنجاح');
       setText('refereeStatus', 'بانتظار انضمام اللاعبين');
@@ -1104,15 +1434,30 @@
     if (!appState.isAuthenticated) {
       return;
     }
+    if (!appState.roomSelected) {
+      return;
+    }
+
+    var activePin = sanitizeRoomPin(DATA_LAYER.getRoomPin() || appState.activeRoomPin || '');
+    if (activePin) {
+      appState.activeRoomPin = activePin;
+    }
 
     if (!game || typeof game !== 'object') {
       renderGameCode(null);
-      if (appState.isAuthenticated && !appState.isStartingMatch) {
+      if (appState.isAuthenticated && appState.roomSelected && !appState.isStartingMatch) {
         showScreen('setup');
+        setText('setupStatus', 'لا توجد مباراة محفوظة لهذه الغرفة. يمكنك إعداد مباراة جديدة.');
       }
+      updateRoomIndexFromGame(activePin, null).catch(function (error) {
+        console.warn('⚠️ room index sync failed for empty room:', error);
+      });
       return;
     }
     appState.lastGame = game;
+    updateRoomIndexFromGame(activePin, game).catch(function (error) {
+      console.warn('⚠️ room index sync failed:', error);
+    });
 
     var turn = game.currentTurn || createFreshTurn(PHASES.SETUP);
     var phase = turn.phase || PHASES.SETUP;
@@ -1909,7 +2254,13 @@
    * @param {'login'|'setup'|'waiting'|'game'} key Screen key.
    */
   function showScreen(key) {
-    var map = { login: 'loginScreen', setup: 'setupScreen', waiting: 'waitingScreen', game: 'gameScreen' };
+    var map = {
+      login: 'loginScreen',
+      lobby: 'lobbyScreen',
+      setup: 'setupScreen',
+      waiting: 'waitingScreen',
+      game: 'gameScreen'
+    };
     Object.keys(map).forEach(function (k) {
       var element = document.getElementById(map[k]);
       if (element) element.classList.toggle('hidden', k !== key);
@@ -1945,6 +2296,66 @@
     setText('gameCodeText', '🎮 رقم اللعبة: ' + code);
     setText('gameCodeTextWaiting', '🎮 رقم اللعبة: ' + code);
     setText('gameCodeInline', '#' + code);
+  }
+
+  /**
+   * Sanitizes room pin value.
+   * @param {string} value Raw room pin.
+   * @returns {string} Four-digit pin.
+   */
+  function sanitizeRoomPin(value) {
+    return String(value || '').replace(/\D/g, '').slice(0, 4);
+  }
+
+  /**
+   * Syncs current room metadata for lobby listing.
+   * @param {string} roomPin Room pin.
+   * @param {Object|null} game Game state.
+   * @returns {Promise<void>} Completion promise.
+   */
+  async function updateRoomIndexFromGame(roomPin, game) {
+    var pin = sanitizeRoomPin(roomPin || DATA_LAYER.getRoomPin() || appState.activeRoomPin || '');
+    if (!pin) return;
+
+    var patch = {
+      pin: pin,
+      status: 'setup',
+      phase: 'setup',
+      hasGame: false,
+      team1Name: 'الفريق الأول',
+      team2Name: 'الفريق الثاني',
+      scoreText: '0 - 0',
+      playersOnline: 0,
+      playersTotal: 0
+    };
+
+    if (game && typeof game === 'object') {
+      var phase = String((game.currentTurn && game.currentTurn.phase) || game.phase || 'setup');
+      var settings = game.settings || {};
+      var scores = game.scores || {};
+      var playersSummary = buildPlayersSummary(game.players || {});
+
+      patch.phase = phase;
+      patch.hasGame = true;
+      patch.team1Name = settings.team1 && settings.team1.name ? settings.team1.name : 'الفريق الأول';
+      patch.team2Name = settings.team2 && settings.team2.name ? settings.team2.name : 'الفريق الثاني';
+      patch.scoreText = String(Number(scores.team1Stars || 0)) + ' - ' + String(Number(scores.team2Stars || 0));
+      patch.playersOnline = Number(playersSummary.onlineTotal || 0);
+      patch.playersTotal = Number(playersSummary.players ? playersSummary.players.length : 0);
+      patch.currentRound = Number(settings.currentRound || 1);
+      patch.bestOf = Number(settings.bestOf || 3);
+      if (phase === PHASES.MATCH_END) patch.status = 'finished';
+      else if (phase === PHASES.SETUP || phase === PHASES.WAITING_PLAYERS) patch.status = 'setup';
+      else patch.status = 'playing';
+    }
+
+    if (typeof DATA_LAYER.updateRoomIndex === 'function') {
+      await DATA_LAYER.updateRoomIndex(pin, patch);
+    } else {
+      await DATA_LAYER.updateData('rooms_index.' + pin, Object.assign({}, patch, {
+        updatedAt: DATA_LAYER.getServerTimestamp()
+      }));
+    }
   }
 
   /**
@@ -2002,9 +2413,11 @@
   function startPresenceMonitor() {
     if (appState.presenceTimer) return;
     appState.presenceTimer = setInterval(async function () {
+      if (!appState.isAuthenticated || !appState.roomSelected) return;
       var game = await readGame();
       if (game && typeof game === 'object') {
         renderPlayers(game.players || {});
+        updateRoomIndexFromGame(appState.activeRoomPin, game).catch(function () {});
       }
     }, 5000);
   }
@@ -2015,6 +2428,7 @@
   function startSnapshotAutoSave() {
     if (appState.snapshotTimer || !window.SNAPSHOT || !SNAPSHOT.saveSnapshot) return;
     appState.snapshotTimer = setInterval(async function () {
+      if (!appState.isAuthenticated || !appState.roomSelected) return;
       var game = await readGame();
       if (game && typeof game === 'object') {
         SNAPSHOT.saveSnapshot(game);

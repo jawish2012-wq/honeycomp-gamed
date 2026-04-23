@@ -124,6 +124,23 @@
   text-align: center;
 }
 
+.room-suggestions {
+  margin-top: 0.55rem;
+  display: flex;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.room-suggestions .chip-btn {
+  border: 1px solid rgba(255,255,255,0.22);
+  background: rgba(255,255,255,0.08);
+  color: #fff;
+  border-radius: 999px;
+  padding: 0.2rem 0.65rem;
+  font-size: 0.88rem;
+  cursor: pointer;
+}
+
 .qr-join {
   padding: 0.8rem;
   text-align: center;

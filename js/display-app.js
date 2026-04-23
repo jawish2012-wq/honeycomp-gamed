@@ -13,7 +13,8 @@
     lastAutoShieldId: null,
     lastBuzzSoundKey: null,
     connected: false,
-    gameUnsub: null
+    gameUnsub: null,
+    roomsIndex: {}
   };
 
   /**
@@ -31,6 +32,14 @@
       if (status) status.textContent = 'فشل الاتصال بقاعدة البيانات';
       return;
     }
+
+    DATA_LAYER.onDataChange('rooms_index', function (roomsData) {
+      appState.roomsIndex = roomsData && typeof roomsData === 'object' ? roomsData : {};
+      renderRoomSuggestions();
+    });
+    loadRoomSuggestions().catch(function (error) {
+      console.warn('⚠️ display rooms suggestions load failed:', error);
+    });
 
     var roomInput = document.getElementById('displayRoomPinInput');
     var initialPin = sanitizePin(roomInput ? roomInput.value : DATA_LAYER.getRoomPin());
@@ -66,7 +75,74 @@
         }
       });
     }
+    var suggestionWrap = document.getElementById('displayRoomSuggestions');
+    if (suggestionWrap) {
+      suggestionWrap.addEventListener('click', function (event) {
+        var btn = event.target && event.target.closest ? event.target.closest('button[data-pin]') : null;
+        if (!btn) return;
+        var pin = sanitizePin(btn.dataset.pin || '');
+        if (!pin) return;
+        if (roomInput) roomInput.value = pin;
+        connectToRoomFromInput();
+      });
+    }
     renderMuteState();
+  }
+
+  /**
+   * Loads room index snapshot once.
+   * @returns {Promise<void>} Completion promise.
+   */
+  async function loadRoomSuggestions() {
+    if (typeof DATA_LAYER.listRooms === 'function') {
+      var list = await DATA_LAYER.listRooms();
+      var map = {};
+      (list || []).forEach(function (room) {
+        var pin = sanitizePin(room && room.pin);
+        if (!pin) return;
+        map[pin] = room;
+      });
+      appState.roomsIndex = map;
+      renderRoomSuggestions();
+      return;
+    }
+    var roomsData = await DATA_LAYER.readData('rooms_index');
+    appState.roomsIndex = roomsData && typeof roomsData === 'object' ? roomsData : {};
+    renderRoomSuggestions();
+  }
+
+  /**
+   * Renders room suggestion chips under pin input.
+   */
+  function renderRoomSuggestions() {
+    var wrap = document.getElementById('displayRoomSuggestions');
+    if (!wrap) return;
+    var entries = Object.keys(appState.roomsIndex || {}).map(function (pin) {
+      var row = appState.roomsIndex[pin] || {};
+      return {
+        pin: sanitizePin(pin),
+        status: String(row.status || '').toLowerCase(),
+        updatedAt: Number(row.updatedAt || 0)
+      };
+    }).filter(function (room) {
+      return room.pin && room.pin.length === 4;
+    }).sort(function (a, b) {
+      return Number(b.updatedAt || 0) - Number(a.updatedAt || 0);
+    }).slice(0, 8);
+
+    wrap.innerHTML = '';
+    if (!entries.length) return;
+
+    entries.forEach(function (room) {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'chip-btn';
+      btn.dataset.pin = room.pin;
+      btn.textContent = '#' + room.pin;
+      if (room.status === 'playing') btn.textContent += ' ⏳';
+      if (room.status === 'finished') btn.textContent += ' ✅';
+      wrap.appendChild(btn);
+    });
   }
 
   /**

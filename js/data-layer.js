@@ -22,6 +22,7 @@
     var roomPin = null;
     var isReady = false;
     var OP_TIMEOUT_MS = 6000;
+    var ROOMS_INDEX_PATH = 'rooms_index';
 
     /**
      * Returns current local timestamp in milliseconds.
@@ -477,11 +478,11 @@
         var exists = false;
         try {
           var existsSnap = await withTimeout(
-            db.ref('games/' + candidate + '/meta/roomPin').once('value'),
+            db.ref('games/' + candidate).once('value'),
             OP_TIMEOUT_MS,
             'createRoom.exists'
           );
-          exists = !!(existsSnap && existsSnap.exists && existsSnap.exists());
+          exists = !!(existsSnap && existsSnap.exists && existsSnap.exists() && existsSnap.val());
         } catch (existsError) {
           console.warn('⚠️ createRoom exists check skipped:', existsError);
         }
@@ -489,7 +490,7 @@
 
         try {
           await withTimeout(
-            db.ref('games/' + candidate + '/meta').update({
+            db.ref('games/' + candidate + '/meta').set({
               roomPin: candidate,
               status: 'setup',
               createdAt: firebase.database.ServerValue.TIMESTAMP,
@@ -497,6 +498,18 @@
             }),
             OP_TIMEOUT_MS,
             'createRoom'
+          );
+          await withTimeout(
+            db.ref(ROOMS_INDEX_PATH + '/' + candidate).update({
+              pin: candidate,
+              status: 'setup',
+              phase: 'setup',
+              hasGame: false,
+              createdAt: firebase.database.ServerValue.TIMESTAMP,
+              updatedAt: firebase.database.ServerValue.TIMESTAMP
+            }),
+            OP_TIMEOUT_MS,
+            'createRoom.index'
           );
         } catch (error) {
           console.warn('⚠️ createRoom write timed out / failed, proceeding with local PIN:', candidate, error);
@@ -519,17 +532,33 @@
       var normalized = sanitizeRoomPin(pin);
       if (!normalized || normalized.length !== 4) return false;
 
+      var roomExists = false;
       try {
         var roomSnap = await withTimeout(
           db.ref('games/' + normalized + '/meta/roomPin').once('value'),
           OP_TIMEOUT_MS,
           'joinRoom.exists'
         );
-        if (!roomSnap || !roomSnap.exists || !roomSnap.exists()) {
-          return false;
-        }
+        roomExists = !!(roomSnap && roomSnap.exists && roomSnap.exists() && roomSnap.val());
       } catch (existsError) {
         console.warn('⚠️ joinRoom exists check skipped for room', normalized, existsError);
+      }
+
+      if (!roomExists) {
+        try {
+          var legacyRoomSnap = await withTimeout(
+            db.ref('games/' + normalized).once('value'),
+            OP_TIMEOUT_MS,
+            'joinRoom.existsLegacy'
+          );
+          roomExists = !!(legacyRoomSnap && legacyRoomSnap.exists && legacyRoomSnap.exists() && legacyRoomSnap.val());
+        } catch (legacyExistsError) {
+          console.warn('⚠️ joinRoom legacy exists check skipped for room', normalized, legacyExistsError);
+        }
+      }
+
+      if (!roomExists) {
+        return false;
       }
 
       setRoomPinInternal(normalized);
@@ -548,6 +577,120 @@
         console.warn('⚠️ joinRoom updatedAt skipped for room', normalized, error);
       }
       return true;
+    }
+
+    /**
+     * Lists all known rooms with lightweight metadata.
+     * @returns {Promise<Array<Object>>} Sorted rooms list (newest first).
+     */
+    async function listRooms() {
+      ensureFirebase();
+      var roomsMap = {};
+
+      try {
+        var indexSnap = await withTimeout(
+          db.ref(ROOMS_INDEX_PATH).once('value'),
+          OP_TIMEOUT_MS,
+          'listRooms.index'
+        );
+        var indexValue = indexSnap && indexSnap.val ? indexSnap.val() : null;
+        if (indexValue && typeof indexValue === 'object') {
+          roomsMap = clone(indexValue) || {};
+        }
+      } catch (indexError) {
+        console.warn('⚠️ listRooms index read failed:', indexError);
+      }
+
+      if (!Object.keys(roomsMap).length) {
+        try {
+          var gamesSnap = await withTimeout(
+            db.ref('games').once('value'),
+            OP_TIMEOUT_MS,
+            'listRooms.games'
+          );
+          var gamesValue = gamesSnap && gamesSnap.val ? gamesSnap.val() : null;
+          if (gamesValue && typeof gamesValue === 'object') {
+            Object.keys(gamesValue).forEach(function (pin) {
+              if (!/^\d{4}$/.test(pin)) return;
+              var roomNode = gamesValue[pin] || {};
+              var meta = roomNode.meta || {};
+              var gameNode = roomNode.game || roomNode;
+              var settings = gameNode && gameNode.settings ? gameNode.settings : {};
+              var scores = gameNode && gameNode.scores ? gameNode.scores : {};
+              roomsMap[pin] = {
+                pin: pin,
+                status: meta.status || 'setup',
+                phase: gameNode && gameNode.phase ? gameNode.phase : 'setup',
+                hasGame: !!(gameNode && typeof gameNode === 'object' && (gameNode.settings || gameNode.currentTurn || gameNode.board)),
+                team1Name: settings && settings.team1 ? settings.team1.name : 'الفريق الأول',
+                team2Name: settings && settings.team2 ? settings.team2.name : 'الفريق الثاني',
+                scoreText: String(Number(scores.team1Stars || 0)) + ' - ' + String(Number(scores.team2Stars || 0)),
+                createdAt: Number(meta.createdAt || 0) || null,
+                updatedAt: Number(meta.updatedAt || 0) || null
+              };
+            });
+          }
+        } catch (gamesError) {
+          console.warn('⚠️ listRooms games fallback read failed:', gamesError);
+        }
+      }
+
+      return Object.keys(roomsMap).map(function (pin) {
+        var room = roomsMap[pin] || {};
+        return Object.assign({ pin: pin }, room);
+      }).sort(function (a, b) {
+        return Number(b.updatedAt || 0) - Number(a.updatedAt || 0);
+      });
+    }
+
+    /**
+     * Updates lightweight room metadata for lobby views.
+     * @param {string} pin Room pin.
+     * @param {Object} patch Metadata patch.
+     * @returns {Promise<void>} Completion promise.
+     */
+    async function updateRoomIndex(pin, patch) {
+      ensureFirebase();
+      var normalized = sanitizeRoomPin(pin);
+      if (!normalized || normalized.length !== 4) {
+        throw new Error('Invalid room pin for updateRoomIndex');
+      }
+      var payload = clone(patch) || {};
+      payload.pin = normalized;
+      payload.updatedAt = firebase.database.ServerValue.TIMESTAMP;
+      await withTimeout(
+        db.ref(ROOMS_INDEX_PATH + '/' + normalized).update(payload),
+        OP_TIMEOUT_MS,
+        'updateRoomIndex'
+      );
+    }
+
+    /**
+     * Deletes a full room tree and its lobby index row.
+     * @param {string} pin Room pin.
+     * @returns {Promise<void>} Completion promise.
+     */
+    async function deleteRoom(pin) {
+      ensureFirebase();
+      var normalized = sanitizeRoomPin(pin);
+      if (!normalized || normalized.length !== 4) {
+        throw new Error('Invalid room pin for deleteRoom');
+      }
+      await withTimeout(
+        Promise.all([
+          db.ref('games/' + normalized).remove(),
+          db.ref(ROOMS_INDEX_PATH + '/' + normalized).remove()
+        ]),
+        OP_TIMEOUT_MS,
+        'deleteRoom'
+      );
+
+      if (roomPin === normalized) {
+        roomPin = null;
+        localStorage.removeItem(ROOM_STORAGE_KEY);
+        rebindAllListeners();
+        fireRoomListeners();
+      }
     }
 
     /**
@@ -749,6 +892,9 @@
       getServerTimestamp: getServerTimestamp,
       createRoom: createRoom,
       joinRoom: joinRoom,
+      listRooms: listRooms,
+      updateRoomIndex: updateRoomIndex,
+      deleteRoom: deleteRoom,
       setRoomPin: setRoomPin,
       getRoomPin: getRoomPin,
       onRoomChange: onRoomChange
