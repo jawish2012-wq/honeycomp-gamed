@@ -271,7 +271,11 @@
 }
 
 .display-mode {
-  --hex-size: 124px;
+  --hex-size: clamp(4.8rem, 4.2vmin + 1.5rem, 7.8rem);
+  --grid-scale: clamp(0.88, 0.82 + 0.22vmin, 1.25);
+  transform: scale(var(--grid-scale));
+  transform-origin: center center;
+  will-change: transform;
 }
 
 .finale-mode .hex-cell {
@@ -285,6 +289,7 @@
 
 @media (max-width: 1100px) {
   .display-mode {
-    --hex-size: 98px;
+    --hex-size: clamp(4.4rem, 3.4vmin + 1.2rem, 6.2rem);
+    --grid-scale: 1;
   }
 }

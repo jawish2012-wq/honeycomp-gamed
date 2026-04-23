@@ -14,6 +14,15 @@
   --radius-lg: 18px;
   --radius-md: 12px;
   --transition-fast: 0.2s ease;
+  --ui-scale: clamp(0.92, 0.55vw + 0.55vh, 1.45);
+  --radius-ui: clamp(0.5rem, 0.25vw + 0.25vh, 1rem);
+  --fs-title-lg: clamp(1.35rem, 1.2vw + 1.2vh, 2.8rem);
+  --fs-title-md: clamp(1.05rem, 0.9vw + 0.9vh, 2rem);
+  --fs-body: clamp(0.88rem, 0.45vw + 0.45vh, 1.25rem);
+  --fs-small: clamp(0.74rem, 0.28vw + 0.28vh, 1rem);
+  --space-1: clamp(0.35rem, 0.22vw + 0.22vh, 0.8rem);
+  --space-2: clamp(0.6rem, 0.35vw + 0.35vh, 1.2rem);
+  --space-3: clamp(0.9rem, 0.55vw + 0.55vh, 1.8rem);
 }
 
 *,

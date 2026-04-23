@@ -577,3 +577,160 @@
     min-height: 360px;
   }
 }
+
+/* ===== Adaptive Display Scaling (projector-safe) ===== */
+.display-layout {
+  min-height: 100dvh;
+  height: 100dvh;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: var(--space-2);
+  padding: var(--space-2);
+  overflow: hidden;
+}
+
+.display-header {
+  gap: var(--space-2);
+  padding: var(--space-2);
+}
+
+.team-box h2 {
+  font-size: var(--fs-title-lg);
+  line-height: 1.1;
+}
+
+.vs-block h1 {
+  font-size: clamp(1.4rem, 1.5vw + 1.5vh, 3.4rem);
+  line-height: 1;
+}
+
+.vs-block p,
+.turn-selection-line,
+.mirror-banner {
+  font-size: var(--fs-body);
+}
+
+.display-main {
+  min-height: 0;
+  grid-template-rows:
+    auto
+    auto
+    auto
+    minmax(0, 1fr)
+    auto
+    auto
+    auto;
+  gap: var(--space-2);
+  overflow: hidden;
+}
+
+.status-area,
+.wheel-area,
+.question-area,
+.buzzer-area,
+.stats-bar,
+.commentator-strip,
+#displayRoomConnect,
+.qr-join {
+  padding: var(--space-2);
+  border-radius: var(--radius-ui);
+}
+
+.status-area {
+  font-size: var(--fs-title-md);
+}
+
+.room-suggestions {
+  margin-top: var(--space-1);
+  display: flex;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+}
+
+.room-suggestions .chip-btn {
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  border-radius: 999px;
+  padding: calc(var(--space-1) * 0.55) calc(var(--space-2) * 0.75);
+  font-size: var(--fs-small);
+  cursor: pointer;
+}
+
+.board-area {
+  min-height: 0;
+  height: 100%;
+  grid-template-rows: auto minmax(0, 1fr);
+  padding: var(--space-1);
+}
+
+.board-topline {
+  width: min(92vw, 92%);
+  margin-bottom: var(--space-1);
+  font-size: var(--fs-small);
+}
+
+#displayGrid {
+  max-width: 100%;
+  max-height: 100%;
+}
+
+#questionText {
+  font-size: clamp(1rem, 0.9vw + 0.9vh, 2.2rem);
+}
+
+#buzzerResult,
+#controlLabel,
+#fastestBuzzLabel,
+#stealLabel,
+#commentatorText {
+  font-size: var(--fs-body);
+}
+
+.surprise-card {
+  width: min(72vw, 86dvh);
+  max-height: 62dvh;
+  padding: var(--space-3);
+  border-radius: calc(var(--radius-ui) * 1.2);
+}
+
+.surprise-card h2 {
+  font-size: clamp(1.2rem, 1vw + 1vh, 2.4rem);
+}
+
+.surprise-card p {
+  font-size: var(--fs-body);
+}
+
+.celebration-content,
+.achievements-content {
+  width: min(82vw, 86dvh);
+  max-height: 80dvh;
+  overflow: auto;
+  padding: var(--space-3);
+}
+
+.achievement-card h4 {
+  font-size: var(--fs-body);
+}
+
+.achievement-card p,
+.achievement-card small {
+  font-size: var(--fs-small);
+}
+
+@media (max-height: 42rem) {
+  .display-main {
+    grid-template-rows:
+      auto
+      auto
+      minmax(0, 1fr)
+      auto
+      auto
+      auto;
+  }
+
+  .commentator-strip {
+    min-height: auto;
+    padding: var(--space-1) var(--space-2);
+  }
+}
