@@ -1,0 +1,155 @@
+﻿<!doctype html>
+<html lang="ar" dir="rtl" data-source="display">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>شاشة العرض - لعبة خلايا النحل</title>
+  <link rel="stylesheet" href="css/common.css">
+  <link rel="stylesheet" href="css/hexgrid.css">
+  <link rel="stylesheet" href="css/display.css">
+  <link rel="stylesheet" href="css/animations.css">
+</head>
+<body>
+  <div class="display-layout" id="displayLayout">
+    <button id="muteToggleBtn" class="mute-toggle" aria-label="كتم الصوت">🔊</button>
+
+    <header class="display-header surface">
+      <div class="team-box" id="teamOneHeader">
+        <h2 id="teamOneName">الفريق الأول</h2>
+        <div class="team-meta-line">
+          <span id="teamOneVoucher" class="voucher-badge hidden">🎟️</span>
+          <div id="teamOneStars" class="stars">☆☆</div>
+        </div>
+      </div>
+
+      <div class="vs-block">
+        <h1>ضد</h1>
+        <p id="roundInfo">الجولة 1 من 3</p>
+        <p id="displayPlayersCount">👥 0 لاعبين متصلين</p>
+        <p id="turnSelectionLine" class="turn-selection-line">🔤 - | 📚 -</p>
+        <p id="mirrorBanner" class="mirror-banner hidden">🪞 الأدوار معكوسة!</p>
+      </div>
+
+      <div class="team-box" id="teamTwoHeader">
+        <h2 id="teamTwoName">الفريق الثاني</h2>
+        <div class="team-meta-line">
+          <span id="teamTwoVoucher" class="voucher-badge hidden">🎟️</span>
+          <div id="teamTwoStars" class="stars">☆☆</div>
+        </div>
+      </div>
+    </header>
+
+    <main class="display-main">
+      <section id="displayRoomConnect" class="surface">
+        <h3>🔗 ربط شاشة العرض</h3>
+        <div class="inline-actions">
+          <input id="displayRoomPinInput" maxlength="4" inputmode="numeric" placeholder="أدخل رمز اللعبة">
+          <button id="displayJoinRoomBtn" class="btn btn-small">اتصال</button>
+        </div>
+        <p id="displayRoomStatus" class="status-text">أدخل رمز اللعبة للاتصال</p>
+      </section>
+
+      <section id="statusArea" class="status-area surface">بانتظار إعداد المباراة من لوحة الحكم...</section>
+
+      <section id="qrJoinSection" class="qr-join surface hidden">
+        <h3>📱 انضم من هاتفك</h3>
+        <img id="qrImage" alt="QR" class="qr-image">
+        <p>أو افتح الرابط:</p>
+        <p id="joinUrlText" class="join-url"></p>
+        <p id="qrPlayersText" class="join-meta">👥 في انتظار اللاعبين</p>
+      </section>
+
+      <section class="wheel-area surface" id="wheelArea">
+        <h3>🎲 عجلة الأسماء</h3>
+        <div id="wheelContainer" class="wheel-container">
+          <p class="wheel-placeholder">ستظهر العجلة هنا</p>
+        </div>
+        <p id="wheelMessage" class="wheel-message"></p>
+      </section>
+
+      <section class="board-area surface" id="boardArea">
+        <div class="board-topline">
+          <div id="surpriseCounter" class="surprise-counter">🎭 مفاجآت: 0/0</div>
+          <div id="blitzCountdown" class="blitz-countdown hidden">⚡ 7</div>
+        </div>
+        <div id="loadingBox" class="loading-box hidden">جاري التحميل...</div>
+        <div id="displayGrid" class="hex-grid-container display-mode"></div>
+      </section>
+
+      <section class="question-area surface">
+        <div id="questionCategory" class="badge">التصنيف</div>
+        <p id="questionText">استعدوا! الحكم سيقرأ السؤال بصوته خلال ثوانٍ.</p>
+      </section>
+
+      <section class="buzzer-area surface">
+        <h3>نتيجة البازر</h3>
+        <p id="buzzerResult">لا يوجد ضغطات بعد</p>
+      </section>
+
+      <section class="stats-bar surface" id="statsBar">
+        <div class="control-track"><span id="controlBarFill" class="control-fill"></span></div>
+        <p id="controlLabel">الفريق الأول 0% — الفريق الثاني 0%</p>
+        <p id="fastestBuzzLabel">⚡ أسرع إصبع: -</p>
+        <p id="stealLabel">🏴‍☠️ سرقات: 0 | 0</p>
+      </section>
+
+      <section class="commentator-strip" id="commentatorStrip">
+        <p id="commentatorText"></p>
+      </section>
+    </main>
+  </div>
+
+  <div id="overrideIndicator" class="override-indicator hidden">🔧 تعديل يدوي</div>
+  <div id="screenFx" class="screen-fx-layer"></div>
+  <div id="frostOverlay" class="frost-overlay hidden"></div>
+
+  <div id="surpriseOverlay" class="surprise-overlay hidden">
+    <div class="surprise-card" id="surpriseCard">
+      <h2 id="surpriseTitle">مفاجأة!</h2>
+      <p id="surpriseText">...</p>
+    </div>
+  </div>
+
+  <div id="celebrationOverlay" class="celebration-overlay hidden">
+    <div class="celebration-content">
+      <h2 id="celebrationText">🏆 فوز!</h2>
+      <p id="celebrationSubText"></p>
+      <div id="confettiLayer" class="confetti-layer"></div>
+    </div>
+  </div>
+
+  <div id="achievementsOverlay" class="achievements-overlay hidden">
+    <div class="achievements-content">
+      <h2>🏆 إنجازات المباراة</h2>
+      <div id="achievementsList" class="achievements-list"></div>
+    </div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
+  <script>
+    window.HCG_FIREBASE_CONFIG = window.HCG_FIREBASE_CONFIG || {
+      apiKey: 'YOUR_API_KEY',
+      authDomain: 'YOUR_PROJECT.firebaseapp.com',
+      databaseURL: 'https://YOUR_PROJECT-default-rtdb.firebaseio.com',
+      projectId: 'YOUR_PROJECT',
+      storageBucket: 'YOUR_PROJECT.appspot.com',
+      messagingSenderId: 'YOUR_SENDER_ID',
+      appId: 'YOUR_APP_ID'
+    };
+  </script>
+  <script src="js/data-layer.js"></script>
+  <script src="js/migrations.js"></script>
+  <script src="js/error-handler.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/event-log.js"></script>
+  <script src="js/hex-grid.js"></script>
+  <script src="js/wheel-spinner.js"></script>
+  <script src="js/question-manager.js"></script>
+  <script src="js/stats-tracker.js"></script>
+  <script src="js/auto-commentator.js"></script>
+  <script src="js/sound-effects.js"></script>
+  <script src="js/qr-generator.js"></script>
+  <script src="js/display-app.js"></script>
+</body>
+</html>

@@ -1,0 +1,175 @@
+﻿<!doctype html>
+<html lang="ar" dir="rtl" data-source="referee">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>لوحة الحكم - لعبة خلايا النحل</title>
+  <link rel="stylesheet" href="css/common.css">
+  <link rel="stylesheet" href="css/hexgrid.css">
+  <link rel="stylesheet" href="css/referee.css">
+  <link rel="stylesheet" href="css/animations.css">
+</head>
+<body>
+  <main class="referee-shell">
+    <section id="loginScreen" class="panel surface">
+      <h1>⚖️ لوحة الحكم</h1>
+      <input id="passwordInput" type="password" placeholder="أدخل كلمة المرور">
+      <button id="loginBtn" type="button" class="btn">دخول</button>
+      <p id="loginMessage" class="status-text"></p>
+    </section>
+
+    <section id="setupScreen" class="panel surface hidden">
+      <h1>🐝 إعداد المباراة</h1>
+      <div class="inline-actions">
+        <button id="createRoomBtn" type="button" class="btn btn-small">🆕 إنشاء لعبة جديدة</button>
+        <p id="gameCodeText" class="status-text">🎮 رقم اللعبة: ----</p>
+      </div>
+      <p id="setupStatus" class="status-text"></p>
+      <div class="grid-2">
+        <div>
+          <label>اسم الفريق الأول</label>
+          <input id="team1Name" type="text" value="الصقور">
+          <label>لون الفريق الأول</label>
+          <input id="team1Color" type="color" value="#e74c3c">
+        </div>
+        <div>
+          <label>اسم الفريق الثاني</label>
+          <input id="team2Name" type="text" value="النسور">
+          <label>لون الفريق الثاني</label>
+          <input id="team2Color" type="color" value="#27ae60">
+        </div>
+      </div>
+      <label>نظام الجولات</label>
+      <select id="bestOfSelect">
+        <option value="3">الأفضل من 3</option>
+        <option value="5">الأفضل من 5</option>
+      </select>
+      <button id="startMatchBtn" type="button" class="btn">🚀 ابدأ المباراة!</button>
+    </section>
+
+    <section id="waitingScreen" class="panel surface hidden">
+      <h1>👥 انتظار اللاعبين</h1>
+      <p id="gameCodeTextWaiting" class="status-text">🎮 رقم اللعبة: ----</p>
+      <p id="playersCountText">👥 0 لاعبين متصلين</p>
+      <p id="teamsOnlineCountText" class="status-text">🔴 0 | 🟢 0</p>
+      <div class="players-grid">
+        <article class="team-players-card">
+          <h4 id="team1PlayersTitle">🔴 الفريق الأول</h4>
+          <ul id="team1PlayersList" class="team-players-list"></ul>
+        </article>
+        <article class="team-players-card">
+          <h4 id="team2PlayersTitle">🟢 الفريق الثاني</h4>
+          <ul id="team2PlayersList" class="team-players-list"></ul>
+        </article>
+      </div>
+      <ul id="playersList" class="hidden"></ul>
+      <button id="startRoundBtn" type="button" class="btn">🎯 ابدأ الجولة!</button>
+      <p id="startRoundHint" class="status-text"></p>
+    </section>
+
+    <section id="gameScreen" class="panel surface hidden">
+      <div class="round-top-info">
+        <p id="phaseText" class="badge">الحالة: تجهيز</p>
+        <p id="gameCodeInline" class="badge">#----</p>
+        <p id="roundText">الجولة 1</p>
+        <p id="turnText">الدور: -</p>
+        <button id="toggleDebugBtn" type="button" class="btn btn-small">🔧 أدوات</button>
+        <button id="toggleOverrideBtn" type="button" class="btn btn-small">🎨 تعديل يدوي</button>
+      </div>
+
+      <section id="debugPanel" class="debug-panel hidden">
+        <p id="debugPhase">الحالة الحالية: -</p>
+        <p id="debugBoard">الخلايا: -</p>
+        <p id="debugSurprises">خريطة المفاجآت</p>
+      </section>
+
+      <section id="overridePanel" class="override-panel hidden">
+        <h3>🎨 تعديل يدوي للخلايا</h3>
+        <p id="overrideHint">اختر خلية من الشبكة ثم اختر الإجراء.</p>
+        <div class="override-actions">
+          <button id="overrideTeam1Btn" type="button" class="btn btn-danger">🔴 فريق 1</button>
+          <button id="overrideTeam2Btn" type="button" class="btn btn-success">🟢 فريق 2</button>
+          <button id="overrideClearBtn" type="button" class="btn">⬡ تفريغ</button>
+        </div>
+        <p id="overrideLast">📝 آخر تعديل: -</p>
+        <button id="overrideUndoBtn" type="button" class="btn">↩️ تراجع عن آخر تعديل</button>
+      </section>
+
+      <div class="referee-grid">
+        <div class="game-left">
+          <h2>لوحة الجولة</h2>
+          <div id="refereeMiniGrid" class="hex-grid-container mini-mode"></div>
+          <p id="selectedCellText">لم يتم اختيار خلية بعد</p>
+          <button id="nextRoundBtn" type="button" class="btn hidden">الجولة التالية</button>
+          <button id="newMatchBtn" type="button" class="btn btn-warning hidden">مباراة جديدة</button>
+        </div>
+
+        <div class="game-center">
+          <h2>السؤال الحالي</h2>
+          <div id="currentCategory" class="badge">التصنيف</div>
+          <p id="currentQuestion">سيظهر السؤال هنا</p>
+          <p id="currentAnswer">الإجابة: -</p>
+          <div class="actions">
+            <button id="askQuestionBtn" type="button" class="btn btn-warning">اطرح السؤال</button>
+            <button id="correctBtn" type="button" class="btn btn-success">✅ صحيحة</button>
+            <button id="wrongBtn" type="button" class="btn btn-danger">❌ خاطئة</button>
+            <button id="skipBtn" type="button" class="btn">⏭️ سؤال جديد</button>
+          </div>
+          <p id="refereeStatus" class="status-text">بانتظار بدء الجولة...</p>
+        </div>
+
+        <aside class="game-right">
+          <h3>ترتيب البازر</h3>
+          <ol id="buzzerOrderList"></ol>
+
+          <h3>الاختيار</h3>
+          <p id="wheelInfo">لم يتم اختيار لاعب بعد</p>
+          <p id="categoryInfo">بانتظار اختيار تصنيف</p>
+
+          <div class="side-box">
+            <h3>مفاجأة الخلية</h3>
+            <p id="surpriseInfo">لم تُكشف مفاجأة بعد</p>
+          </div>
+
+          <div class="side-box">
+            <h3>الحالة الخاصة</h3>
+            <p id="stealStatus">لا يوجد سطو نشط</p>
+            <p id="blitzInfo">🔥 لا يوجد خلايا مشتعلة</p>
+            <p id="freezeInfo">❄️ لا يوجد تجميد نشط</p>
+          </div>
+        </aside>
+      </div>
+    </section>
+  </main>
+
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
+  <script>
+    window.HCG_FIREBASE_CONFIG = window.HCG_FIREBASE_CONFIG || {
+      apiKey: 'YOUR_API_KEY',
+      authDomain: 'YOUR_PROJECT.firebaseapp.com',
+      databaseURL: 'https://YOUR_PROJECT-default-rtdb.firebaseio.com',
+      projectId: 'YOUR_PROJECT',
+      storageBucket: 'YOUR_PROJECT.appspot.com',
+      messagingSenderId: 'YOUR_SENDER_ID',
+      appId: 'YOUR_APP_ID'
+    };
+  </script>
+  <script src="js/data-layer.js"></script>
+  <script src="js/migrations.js"></script>
+  <script src="js/error-handler.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/event-log.js"></script>
+  <script src="js/snapshot.js"></script>
+  <script src="js/hex-grid.js"></script>
+  <script src="js/wheel-spinner.js"></script>
+  <script src="js/surprise-engine.js"></script>
+  <script src="js/path-checker.js"></script>
+  <script src="js/question-manager.js"></script>
+  <script src="js/buzzer-system.js"></script>
+  <script src="js/stats-tracker.js"></script>
+  <script src="js/auto-commentator.js"></script>
+  <script src="js/sound-effects.js"></script>
+  <script src="js/referee-app.js"></script>
+</body>
+</html>
