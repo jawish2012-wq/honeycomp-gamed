@@ -287,6 +287,8 @@
     var teamTwoStars = document.getElementById('teamTwoStars');
     var roundInfo = document.getElementById('roundInfo');
     var playersCount = document.getElementById('displayPlayersCount');
+    var teamOneDot = document.getElementById('teamOneDot');
+    var teamTwoDot = document.getElementById('teamTwoDot');
 
     if (playersCount) {
       playersCount.textContent = '👥 ' + playerCount + ' لاعبين متصلين';
@@ -298,6 +300,8 @@
       teamOneStars.textContent = '☆☆';
       teamTwoStars.textContent = '☆☆';
       roundInfo.textContent = 'بانتظار إعداد المباراة';
+      if (teamOneDot) teamOneDot.style.background = 'var(--color-team1)';
+      if (teamTwoDot) teamTwoDot.style.background = 'var(--color-team2)';
       return;
     }
 
@@ -312,6 +316,8 @@
 
     document.getElementById('teamOneHeader').style.borderColor = settings.team1.color;
     document.getElementById('teamTwoHeader').style.borderColor = settings.team2.color;
+    if (teamOneDot) teamOneDot.style.background = settings.team1.color;
+    if (teamTwoDot) teamTwoDot.style.background = settings.team2.color;
   }
 
   /**
@@ -335,6 +341,7 @@
     var statusArea = document.getElementById('statusArea');
     if (!settings) {
       statusArea.textContent = 'بانتظار إعداد المباراة من لوحة الحكم...';
+      statusArea.dataset.tone = 'idle';
       return;
     }
 
@@ -358,6 +365,21 @@
     };
 
     statusArea.textContent = map[phase] || 'حالة غير معروفة';
+    statusArea.dataset.tone = statusToneForPhase(phase);
+  }
+
+  /**
+   * Maps phase to status visual tone.
+   * @param {string} phase Phase id.
+   * @returns {string} Tone key.
+   */
+  function statusToneForPhase(phase) {
+    if (phase === 'buzzerOpen') return 'live';
+    if (phase === 'judging' || phase === 'cellResult') return 'focus';
+    if (phase === 'roundEnd' || phase === 'matchEnd') return 'win';
+    if (phase === 'surpriseReveal' || phase === 'selectSteal') return 'surprise';
+    if (phase === 'waitingPlayers' || phase === 'setup') return 'idle';
+    return 'normal';
   }
 
   /**
@@ -478,16 +500,19 @@
   function renderQuestion(turn) {
     var category = document.getElementById('questionCategory');
     var text = document.getElementById('questionText');
+    var questionArea = document.querySelector('.question-area');
     var question = turn.currentQuestion || null;
 
     if (!question) {
       category.textContent = 'التصنيف';
       text.textContent = 'استعدوا! الحكم سيقرأ السؤال بصوته خلال ثوانٍ.';
+      if (questionArea) questionArea.dataset.mode = 'idle';
       return;
     }
 
     category.textContent = turn.phase === 'opening' ? '🎯 سؤال افتتاحي!' : (question.category || 'التصنيف');
     text.textContent = buildDisplayPrompt(turn.phase);
+    if (questionArea) questionArea.dataset.mode = turn.phase === 'buzzerOpen' ? 'live' : 'normal';
   }
 
   /**

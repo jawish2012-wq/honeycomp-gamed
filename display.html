@@ -14,67 +14,74 @@
     <button id="muteToggleBtn" class="mute-toggle" aria-label="كتم الصوت">🔊</button>
 
     <header class="display-header surface">
-      <div class="team-box" id="teamOneHeader">
-        <h2 id="teamOneName">الفريق الأول</h2>
-        <div class="team-meta-line">
-          <span id="teamOneVoucher" class="voucher-badge hidden">🎟️</span>
-          <div id="teamOneStars" class="stars">☆☆</div>
+      <article class="team-box team-box-right" id="teamOneHeader">
+        <div class="team-line">
+          <span id="teamOneDot" class="team-dot" aria-hidden="true"></span>
+          <span id="teamOneVoucher" class="voucher-badge hidden" title="قسيمة سطو">🎟️</span>
+          <h2 id="teamOneName">الفريق الأول</h2>
         </div>
-      </div>
+        <div id="teamOneStars" class="stars">☆☆</div>
+      </article>
 
-      <div class="vs-block">
+      <article class="vs-block">
         <h1>ضد</h1>
         <p id="roundInfo">الجولة 1 من 3</p>
         <p id="displayPlayersCount">👥 0 لاعبين متصلين</p>
         <p id="turnSelectionLine" class="turn-selection-line">🔤 - | 📚 -</p>
         <p id="mirrorBanner" class="mirror-banner hidden">🪞 الأدوار معكوسة!</p>
-      </div>
+        <p id="finaleBanner" class="finale-banner hidden">🔥 الجولة الفاصلة — كل شيء ممكن! 🔥</p>
+      </article>
 
-      <div class="team-box" id="teamTwoHeader">
-        <h2 id="teamTwoName">الفريق الثاني</h2>
-        <div class="team-meta-line">
-          <span id="teamTwoVoucher" class="voucher-badge hidden">🎟️</span>
-          <div id="teamTwoStars" class="stars">☆☆</div>
+      <article class="team-box team-box-left" id="teamTwoHeader">
+        <div class="team-line">
+          <h2 id="teamTwoName">الفريق الثاني</h2>
+          <span id="teamTwoVoucher" class="voucher-badge hidden" title="قسيمة سطو">🎟️</span>
+          <span id="teamTwoDot" class="team-dot" aria-hidden="true"></span>
         </div>
-      </div>
+        <div id="teamTwoStars" class="stars">☆☆</div>
+      </article>
     </header>
 
     <main class="display-main">
-      <section id="displayRoomConnect" class="surface">
-        <h3>🔗 ربط شاشة العرض</h3>
-        <div class="inline-actions">
-          <input id="displayRoomPinInput" maxlength="4" inputmode="numeric" placeholder="أدخل رمز اللعبة">
-          <button id="displayJoinRoomBtn" class="btn btn-small">اتصال</button>
-        </div>
-        <div id="displayRoomSuggestions" class="room-suggestions"></div>
-        <p id="displayRoomStatus" class="status-text">أدخل رمز اللعبة للاتصال</p>
-      </section>
+      <div class="pre-game-row">
+        <section id="displayRoomConnect" class="surface connect-panel">
+          <h3>🔗 ربط شاشة العرض</h3>
+          <div class="inline-actions">
+            <input id="displayRoomPinInput" maxlength="4" inputmode="numeric" placeholder="أدخل رمز اللعبة">
+            <button id="displayJoinRoomBtn" class="btn btn-small">اتصال</button>
+          </div>
+          <div id="displayRoomSuggestions" class="room-suggestions"></div>
+          <p id="displayRoomStatus" class="status-text">أدخل رمز اللعبة للاتصال</p>
+        </section>
 
-      <section id="statusArea" class="status-area surface">بانتظار إعداد المباراة من لوحة الحكم...</section>
+        <section id="qrJoinSection" class="qr-join surface hidden">
+          <h3>📱 انضم من هاتفك</h3>
+          <img id="qrImage" alt="QR" class="qr-image">
+          <p class="join-label">أو افتح الرابط:</p>
+          <p id="joinUrlText" class="join-url"></p>
+          <p id="qrPlayersText" class="join-meta">👥 في انتظار اللاعبين</p>
+        </section>
+      </div>
 
-      <section id="qrJoinSection" class="qr-join surface hidden">
-        <h3>📱 انضم من هاتفك</h3>
-        <img id="qrImage" alt="QR" class="qr-image">
-        <p>أو افتح الرابط:</p>
-        <p id="joinUrlText" class="join-url"></p>
-        <p id="qrPlayersText" class="join-meta">👥 في انتظار اللاعبين</p>
-      </section>
+      <section class="stage-shell surface">
+        <section id="statusArea" class="status-area">بانتظار إعداد المباراة من لوحة الحكم...</section>
 
-      <section class="wheel-area surface" id="wheelArea">
-        <h3>🎲 عجلة الأسماء</h3>
-        <div id="wheelContainer" class="wheel-container">
-          <p class="wheel-placeholder">ستظهر العجلة هنا</p>
-        </div>
-        <p id="wheelMessage" class="wheel-message"></p>
-      </section>
+        <section class="wheel-area surface" id="wheelArea">
+          <h3>🎲 عجلة الأسماء</h3>
+          <div id="wheelContainer" class="wheel-container">
+            <p class="wheel-placeholder">ستظهر العجلة هنا</p>
+          </div>
+          <p id="wheelMessage" class="wheel-message"></p>
+        </section>
 
-      <section class="board-area surface" id="boardArea">
-        <div class="board-topline">
-          <div id="surpriseCounter" class="surprise-counter">🎭 مفاجآت: 0/0</div>
-          <div id="blitzCountdown" class="blitz-countdown hidden">⚡ 7</div>
-        </div>
-        <div id="loadingBox" class="loading-box hidden">جاري التحميل...</div>
-        <div id="displayGrid" class="hex-grid-container display-mode"></div>
+        <section class="board-area" id="boardArea">
+          <div class="board-topline">
+            <div id="surpriseCounter" class="surprise-counter">🎭 مفاجآت: 0/0</div>
+            <div id="blitzCountdown" class="blitz-countdown hidden">⚡ 7</div>
+          </div>
+          <div id="loadingBox" class="loading-box hidden">جاري التحميل...</div>
+          <div id="displayGrid" class="hex-grid-container display-mode"></div>
+        </section>
       </section>
 
       <section class="question-area surface">
@@ -89,9 +96,11 @@
 
       <section class="stats-bar surface" id="statsBar">
         <div class="control-track"><span id="controlBarFill" class="control-fill"></span></div>
-        <p id="controlLabel">الفريق الأول 0% — الفريق الثاني 0%</p>
-        <p id="fastestBuzzLabel">⚡ أسرع إصبع: -</p>
-        <p id="stealLabel">🏴‍☠️ سرقات: 0 | 0</p>
+        <div class="stats-line">
+          <p id="controlLabel">الفريق الأول 0% — الفريق الثاني 0%</p>
+          <p id="fastestBuzzLabel">⚡ أسرع إصبع: -</p>
+          <p id="stealLabel">🏴‍☠️ سرقات: 0 | 0</p>
+        </div>
       </section>
 
       <section class="commentator-strip" id="commentatorStrip">
